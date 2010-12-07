@@ -11,6 +11,10 @@ import javax.xml.namespace.QName;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.switchyard.Exchange;
+import org.switchyard.ExchangePattern;
+import org.switchyard.Message;
+import org.switchyard.MessageBuilder;
 import org.switchyard.MockHandler;
 import org.switchyard.ServiceDomain;
 
@@ -43,7 +47,7 @@ public class JGroupsStandingRegistry {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         while(true) {
             try {
-                System.out.print("[(r)egister/(u)nregister <service>- "); 
+                System.out.print("[(r)egister/(u)nregister/(e)xchange <service>- "); 
                 System.out.flush();
                 
                 String line = in.readLine();
@@ -54,7 +58,7 @@ public class JGroupsStandingRegistry {
 
                         final QName serviceName = new QName(array[1]);
                         // Provide the service
-                        MockHandler provider = new MockHandler().forwardInToFault();
+                        StandingHandler provider = new StandingHandler().forwardInToFault();
                         ServiceRegistration sr = 
                             (ServiceRegistration) domain.registerService(serviceName, provider);
 
@@ -62,9 +66,7 @@ public class JGroupsStandingRegistry {
                         if (registrations.containsKey(serviceName)) {
                             services = registrations.get(serviceName);
                         } else {
-                            services = new 
-                            
-                            ArrayList<ServiceRegistration>();
+                            services = new ArrayList<ServiceRegistration>();
                             services.add(sr);
                             registrations.put(serviceName, services);
                         }                        
@@ -84,6 +86,17 @@ public class JGroupsStandingRegistry {
                                     + "[" + serviceName.toString() + "]");
                             System.out.println();
                         }
+                    } else if (line.startsWith("e")) {
+                        String[] array = line.split(" ");
+                        
+                        final QName serviceName = new QName(array[1]);
+                        StandingHandler consumer = new StandingHandler();
+                	
+                        Exchange exchange = domain.createExchange(serviceName, ExchangePattern.IN_OUT,
+                		consumer);
+                	Message message = MessageBuilder.newInstance().buildMessage();
+                	message.setContent("foo");
+                	exchange.send(message);
                     } else if (("quit".equalsIgnoreCase(line))) {
                         break;
                     } 

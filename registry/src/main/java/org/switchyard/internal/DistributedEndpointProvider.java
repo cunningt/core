@@ -32,17 +32,3 @@ public class DistributedEndpointProvider implements EndpointProvider {
         return new DistributedEndpoint(handlerChain);
     }
 }
-
-class DistributedEndpoint implements Endpoint {
-    
-    private HandlerChain _handlerChain;
-    
-    DistributedEndpoint(HandlerChain handlerChain) {
-        _handlerChain = handlerChain;
-    }
-
-    @Override
-    public void send(Exchange exchange) {
-        _handlerChain.handle(exchange);
-    }
-}

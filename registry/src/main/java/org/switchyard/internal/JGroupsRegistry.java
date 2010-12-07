@@ -31,10 +31,6 @@ import javax.xml.namespace.QName;
 
 import org.jgroups.ChannelClosedException;
 import org.jgroups.ChannelNotConnectedException;
-import org.jgroups.JChannel;
-import org.jgroups.Message;
-import org.jgroups.ReceiverAdapter;
-import org.jgroups.View;
 import org.switchyard.HandlerChain;
 import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
@@ -47,13 +43,7 @@ import org.switchyard.spi.ServiceRegistry;
  * 
  * @author tcunning
  */
-public class JGroupsRegistry extends ReceiverAdapter implements ServiceRegistry {
-    public static final String CLUSTER_NAME = "org.switchyard.registry.cluster";
-    public static final String DEFAULT_CLUSTER = "SwitchyardCluster";
-    public static final String REGISTER_MESSAGE = "register";
-    public static final String UNREGISTER_MESSAGE = "unregister";
-    
-    private JChannel _channel;
+public class JGroupsRegistry implements ServiceRegistry {    
     
     private Map<QName, List<ServiceRegistration>> _localServices = 
         new HashMap<QName, List<ServiceRegistration>>();
@@ -61,94 +51,52 @@ public class JGroupsRegistry extends ReceiverAdapter implements ServiceRegistry 
     private Map<QName, List<ServiceRegistration>> _remoteServices =
         new HashMap<QName, List<ServiceRegistration>>();
     
+    private Proxy _proxy;
+    
     /**
      * Constructor
      */
     public JGroupsRegistry() throws Exception {
         super();
         
-        String clusterName = System.getProperty(CLUSTER_NAME, DEFAULT_CLUSTER);
-        
-        _channel = new JChannel();
-        _channel.setReceiver(this);
-        _channel.connect(clusterName);  
-    }
-    
-    public void receive(Message message) {
-        RegistrationMessage msg = (RegistrationMessage) message.getObject();
-        QName serviceName = msg.getName();
-        ServiceRegistration sr = new ServiceRegistration(serviceName, null, null, this, null);
-
-        if (msg.getAction().equals(RegistrationAction.REGISTER)) {            
-            List<ServiceRegistration> serviceList = _remoteServices.get(serviceName);
-            if (serviceList == null) {
-                serviceList = new LinkedList<ServiceRegistration>();
-                 _remoteServices.put(serviceName, serviceList);
-            }
-            serviceList.add(sr);
-        } else if (msg.getAction().equals(RegistrationAction.UNREGISTER)) {
-            List<ServiceRegistration> serviceList = _remoteServices.get(serviceName);
-            if (serviceList != null) {
-                serviceList.remove(0); // need to do something smarter here than remove the first service
-                if (serviceList.size() == 0) {
-                    _remoteServices.remove(sr);
-                }
-            }
-        } else if (msg.getAction().equals(RegistrationAction.POPULATE)) {
-        } else {
-            throw new RuntimeException("Received invalid registration message");
-        }
-        printRegistry();
-    }    
-    
-    public void viewAccepted(View new_view) {
-        System.out.println("** view: " + new_view);
+        _proxy = new Proxy(this);
     }
         
-    /**
-     * Sends a registration notification.
-     * @throws ChannelClosedException 
-     * @throws ChannelNotConnectedException 
-     */
-    public void sendRegisterNotification(QName serviceName) throws ChannelNotConnectedException, ChannelClosedException {
-        RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
-        Message msg=new Message(null, null, regMsg);
-
-        _channel.send(msg);
-    }
-    
-    /**
-     * Sends an unregister notification. 
-     * @throws ChannelClosedException 
-     * @throws ChannelNotConnectedException 
-     */
-    public void sendDeleteNotification(QName serviceName) throws ChannelNotConnectedException, ChannelClosedException {
-        RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
-        Message msg=new Message(null, null, regMsg);
-        
-        _channel.send(msg);        
-    }
-
     @Override
     public Service registerService(QName serviceName, Endpoint endpoint,
             HandlerChain handlers, ServiceDomain domain) {
         ServiceRegistration sr = new ServiceRegistration(
                 serviceName, endpoint, handlers, this, domain);
+        boolean remoteFlag = false;
         
-        List<ServiceRegistration> serviceList = _localServices.get(serviceName);
-        if (serviceList == null) {
-            serviceList = new LinkedList<ServiceRegistration>();
-             _localServices.put(serviceName, serviceList);
-        }
-        try {
-            sendRegisterNotification(serviceName);
-        } catch (ChannelNotConnectedException e) {
-            throw new RuntimeException(e);
-        } catch (ChannelClosedException e) {
-            throw new RuntimeException(e);
+        if (endpoint instanceof DistributedEndpoint) {
+            DistributedEndpoint de = (DistributedEndpoint) endpoint;
+            remoteFlag = de.getAddress() != null;
         }
         
-        serviceList.add(sr);
+        if (remoteFlag) {
+            List<ServiceRegistration> remoteList = _remoteServices.get(serviceName);
+            if (remoteList == null) {
+        	remoteList = new LinkedList<ServiceRegistration>();
+        	_remoteServices.put(serviceName, remoteList);
+            }
+            remoteList.add(sr);
+        } else {
+            List<ServiceRegistration> serviceList = _localServices.get(serviceName);
+            if (serviceList == null) {
+                serviceList = new LinkedList<ServiceRegistration>();
+                 _localServices.put(serviceName, serviceList);
+            }
+            try {
+                _proxy.sendRegisterNotification(serviceName, domain.getName());
+            } catch (ChannelNotConnectedException e) {
+                throw new RuntimeException(e);
+            } catch (ChannelClosedException e) {
+                throw new RuntimeException(e);
+            }
+            
+            serviceList.add(sr);
+        }
         
         printRegistry();
         return sr;
@@ -156,18 +104,26 @@ public class JGroupsRegistry extends ReceiverAdapter implements ServiceRegistry 
 
     @Override
     public void unregisterService(Service service) {
-        List<ServiceRegistration> serviceList = _localServices.get(service.getName());
+	// Check whether this is a remote service
+	List<ServiceRegistration> remoteList = _remoteServices.get(service.getName());
+	if ((remoteList != null) && (remoteList.contains(service))) {
+	    remoteList.remove(service);
+	    printRegistry();
+	    return;
+	}
+	
+	// Not a remote service - remove the local service
+	List<ServiceRegistration> serviceList = _localServices.get(service.getName());
         if (serviceList != null) {
             serviceList.remove(service);
             try {
-                sendDeleteNotification(service.getName());
+                _proxy.sendDeleteNotification(service.getName());
             } catch (ChannelNotConnectedException e) {
                 throw new RuntimeException(e);
             } catch (ChannelClosedException e) {
                 throw new RuntimeException(e);
             }
-            
-            printRegistry();
+            printRegistry();            
         }
     }
 
@@ -212,7 +168,7 @@ public class JGroupsRegistry extends ReceiverAdapter implements ServiceRegistry 
         return domainServices;
     }
     
-    protected void printRegistry() {
+    public void printRegistry() {
         System.out.println("====================================");
         System.out.println("Local Services");
         System.out.println("====================================");
