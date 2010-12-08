@@ -32,6 +32,9 @@ import org.switchyard.ServiceDomain;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class MockServiceRegistry implements ServiceRegistry {        
     public MockServiceRegistry() {
     }

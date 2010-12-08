@@ -25,6 +25,9 @@ import org.jgroups.Address;
 import org.jgroups.Channel;
 import org.jgroups.ChannelListener;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class RegistryChannelListener implements ChannelListener {
 
     @Override

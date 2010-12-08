@@ -1,8 +1,31 @@
+/*
+ * JBoss, Home of Professional Open Source.
+ * Copyright 2010, Red Hat, Inc., and individual contributors
+ * as indicated by the @author tags. See the copyright.txt file in the
+ * distribution for a full listing of individual contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
 package org.switchyard.internal;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.namespace.QName;
 
@@ -21,6 +44,9 @@ import org.switchyard.ServiceDomain;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class Proxy extends ReceiverAdapter {
     private ServiceRegistry _registry;
     private JChannel _channel;
@@ -30,6 +56,9 @@ public class Proxy extends ReceiverAdapter {
 
     public static final String REGISTER_MESSAGE = "register";
     public static final String UNREGISTER_MESSAGE = "unregister";
+
+    private Map<Address, List<ServiceRegistration>> _remoteServices = 
+        new HashMap<Address, List<ServiceRegistration>>();
 
     public Proxy (ServiceRegistry registry) throws ChannelException {
         String clusterName = System.getProperty(CLUSTER_NAME, DEFAULT_CLUSTER);
@@ -46,6 +75,13 @@ public class Proxy extends ReceiverAdapter {
 	ExchangeWrapper ew = new ExchangeWrapper(exchange);
 	Message message = new Message(target, _channel.getAddress(),
 		ew);
+	try {
+        _channel.send(message);
+	} catch (ChannelNotConnectedException e) {
+	    throw new RuntimeException(e);
+	} catch (ChannelClosedException e) {
+	    throw new RuntimeException(e);
+        }
     }	
         
     public void processExchange(ExchangeWrapper wrapper) {
@@ -74,7 +110,13 @@ public class Proxy extends ReceiverAdapter {
             if (_channel.getAddress().compareTo(de.getAddress()) == 0) {
         	return;
             } else {
-        	_registry.registerService(serviceName, de, null, domain);
+        	ServiceRegistration sr = (ServiceRegistration) _registry.registerService(serviceName, de, null, domain);
+                List<ServiceRegistration> remoteList = _remoteServices.get(de.getAddress());
+                if (remoteList == null) {
+                    remoteList = new LinkedList<ServiceRegistration>();
+                    _remoteServices.put(de.getAddress(), remoteList);
+                }
+                remoteList.add(sr);
             }
         } else if (msg.getAction().equals(RegistrationAction.UNREGISTER)) {
             List<Service> serviceList = _registry.getServices(serviceName);
@@ -86,6 +128,14 @@ public class Proxy extends ReceiverAdapter {
         	    if (message.getSrc().compareTo(distribEndpoint.getAddress()) == 0) {
         		_registry.unregisterService(sr);
         	    }
+        	    
+        	    // Remove it from our remoteServices list
+                    List<ServiceRegistration> remoteList = _remoteServices.get(distribEndpoint.getAddress());
+                    if (remoteList == null) {
+                        remoteList = new LinkedList<ServiceRegistration>();
+                        _remoteServices.put(distribEndpoint.getAddress(), remoteList);
+                    }
+                    remoteList.remove(sr);        	    
         	}
             }            
         } else if (msg.getAction().equals(RegistrationAction.POPULATE)) {
@@ -95,8 +145,27 @@ public class Proxy extends ReceiverAdapter {
         ((JGroupsRegistry)_registry).printRegistry();
     }    
 
+    public void suspect(Address mbr) {
+        // Remove it from our remoteServices list
+        List<ServiceRegistration> remoteList = _remoteServices.get(mbr);
+        if (remoteList != null) {
+            for (ServiceRegistration sr : remoteList) {
+                System.out.println("Unregistering service " + sr.getName() + " because address "
+                        + mbr.toString() + " is suspected");
+                _registry.unregisterService(sr);
+            }
+        }
+        _remoteServices.remove(mbr);
+        
+        System.out.println();
+        System.out.println("** suspect: " + mbr.toString());
+        System.out.println();        
+    }
+    
     public void viewAccepted(View new_view) {
+        System.out.println();
         System.out.println("** view: " + new_view);
+        System.out.println();
     }
         
     /**
@@ -108,7 +177,6 @@ public class Proxy extends ReceiverAdapter {
 	RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
         regMsg.setDomainName(domainName);
         Message msg=new Message(null, _channel.getAddress(), regMsg);
-        
         _channel.send(msg);
     }
     
@@ -119,8 +187,7 @@ public class Proxy extends ReceiverAdapter {
      */
     public void sendDeleteNotification(QName serviceName) throws ChannelNotConnectedException, ChannelClosedException {
 	RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
-        Message msg=new Message(null, _channel.getAddress(), regMsg);
-        
+        Message msg=new Message(null, _channel.getAddress(), regMsg);       
         _channel.send(msg);        
     }	
 }

@@ -26,6 +26,9 @@ import org.switchyard.HandlerChain;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.EndpointProvider;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class DistributedEndpointProvider implements EndpointProvider {
     @Override
     public Endpoint createEndpoint(HandlerChain handlerChain) {

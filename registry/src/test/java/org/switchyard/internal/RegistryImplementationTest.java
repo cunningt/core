@@ -31,6 +31,9 @@ import org.switchyard.MockHandler;
 import org.switchyard.internal.MockEndpoint;
 import org.switchyard.ServiceDomain;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class RegistryImplementationTest {
     
     private static final String MOCK_REGISTRY = "org.switchyard.internal.MockServiceRegistry";
