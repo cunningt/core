@@ -41,7 +41,7 @@ import org.switchyard.spi.ServiceRegistry;
  * A distributed Registry that broadcasts register and unregister messages
  * to track remote services within a cluster.
  * 
- * @author tcunning
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
 public class JGroupsRegistry implements ServiceRegistry {    
     
@@ -52,19 +52,13 @@ public class JGroupsRegistry implements ServiceRegistry {
         new HashMap<QName, List<ServiceRegistration>>();
     
     private Proxy _proxy;
-    private Thread _proxyThread;
     
     /**
      * Constructor
      */
     public JGroupsRegistry() throws Exception {
-        super();
-        
+        super();       
         _proxy = new Proxy(this);
-        //_proxyThread = new Thread(_proxy);
-        //_proxyThread.setName("RegistryProxy");
-        //_proxyThread.setDaemon(true);
-        //_proxyThread.start();
     }
         
     @Override
@@ -174,6 +168,7 @@ public class JGroupsRegistry implements ServiceRegistry {
     }
     
     public void printRegistry() {
+        System.out.println();
         System.out.println("====================================");
         System.out.println("Local Services");
         System.out.println("====================================");

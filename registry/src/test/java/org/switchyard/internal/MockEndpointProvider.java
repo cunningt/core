@@ -27,6 +27,9 @@ import org.switchyard.internal.MockEndpoint;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.EndpointProvider;
 
+/**
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
+ */
 public class MockEndpointProvider implements EndpointProvider {
     @Override
     public Endpoint createEndpoint(HandlerChain handlerChain) {

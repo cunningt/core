@@ -34,7 +34,7 @@ import org.switchyard.message.FaultMessage;
 /**
  * Standing Handler.
  * 
- * @author <a href="mailto:tom.fennelly@gmail.com">tom.fennelly@gmail.com</a>
+ * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
 public class StandingHandler extends BaseHandler {
 
