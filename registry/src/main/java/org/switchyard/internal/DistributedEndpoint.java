@@ -26,7 +26,7 @@ public class DistributedEndpoint implements Endpoint {
     @Override
     public void send(Exchange exchange) {
 	if ( _address != null) {
-	    _proxy.send(exchange);
+	    _proxy.send(this, exchange);
 	} else if (_handlerChain != null) {
 	    _handlerChain.handle(exchange);
 	} else {
