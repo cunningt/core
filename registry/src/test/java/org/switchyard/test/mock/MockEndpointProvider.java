@@ -19,49 +19,20 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.switchyard.internal;
+package org.switchyard.test.mock;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.xml.namespace.QName;
-
+import org.switchyard.Exchange;
 import org.switchyard.HandlerChain;
-import org.switchyard.Service;
-import org.switchyard.ServiceDomain;
 import org.switchyard.spi.Endpoint;
-import org.switchyard.spi.ServiceRegistry;
+import org.switchyard.spi.EndpointProvider;
+import org.switchyard.test.mock.MockEndpoint;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class MockServiceRegistry implements ServiceRegistry {        
-    public MockServiceRegistry() {
-    }
-    
+public class MockEndpointProvider implements EndpointProvider {
     @Override
-    public Service registerService(QName serviceName, Endpoint endpoint,
-            HandlerChain handlers, ServiceDomain domain) {
-        QName mockName = new QName("mockServiceName");
-        return new ServiceRegistration(mockName, endpoint, handlers, this, domain);
-    }
-
-    @Override
-    public void unregisterService(Service service) { 
-    }
-
-    @Override
-    public List<Service> getServices() {
-        return new ArrayList<Service>();
-    }
-
-    @Override
-    public List<Service> getServices(QName serviceName) {
-        return new ArrayList<Service>();
-    }
-
-    @Override
-    public List<Service> getServicesForDomain(String domainName) {
-        return new ArrayList<Service>();
+    public Endpoint createEndpoint(HandlerChain handlerChain) {
+        return new MockEndpoint(handlerChain);
     }
 }

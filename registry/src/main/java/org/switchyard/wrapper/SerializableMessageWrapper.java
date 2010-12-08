@@ -1,4 +1,4 @@
-package org.switchyard.internal;
+package org.switchyard.wrapper;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -9,11 +9,11 @@ import org.switchyard.Message;
 import org.switchyard.MessageBuilder;
 import org.switchyard.message.DefaultMessage;
 
-public class DefaultMessageWrapper implements Serializable {
+public class SerializableMessageWrapper implements Serializable {
     private static final long serialVersionUID = 380103027061648991L;
     private transient DefaultMessage _message;
     
-    public DefaultMessageWrapper(Message message) {
+    public SerializableMessageWrapper(Message message) {
         _message = (DefaultMessage) message;
     }
     

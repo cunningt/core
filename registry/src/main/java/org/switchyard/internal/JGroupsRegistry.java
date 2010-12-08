@@ -51,14 +51,14 @@ public class JGroupsRegistry implements ServiceRegistry {
     private Map<QName, List<ServiceRegistration>> _remoteServices =
         new HashMap<QName, List<ServiceRegistration>>();
     
-    private Proxy _proxy;
+    private RegistryProxy _proxy;
     
     /**
      * Constructor
      */
     public JGroupsRegistry() throws Exception {
         super();       
-        _proxy = new Proxy(this);
+        _proxy = new RegistryProxy(this);
     }
         
     @Override
