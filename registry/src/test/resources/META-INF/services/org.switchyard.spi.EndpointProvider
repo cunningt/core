@@ -1,1 +1,1 @@
-org.switchyard.internal.MockEndpointProvider 	# mock endpoint provider
+org.switchyard.test.mock.MockEndpointProvider 	# mock endpoint provider

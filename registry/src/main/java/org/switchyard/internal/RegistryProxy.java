@@ -43,11 +43,12 @@ import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
+import org.switchyard.wrapper.SerializableExchangeWrapper;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class Proxy extends ReceiverAdapter {
+public class RegistryProxy extends ReceiverAdapter {
     private ServiceRegistry _registry;
     private JChannel _channel;
     
@@ -60,7 +61,7 @@ public class Proxy extends ReceiverAdapter {
     private Map<Address, List<ServiceRegistration>> _remoteServices = 
         new HashMap<Address, List<ServiceRegistration>>();
 
-    public Proxy (ServiceRegistry registry) throws ChannelException {
+    public RegistryProxy (ServiceRegistry registry) throws ChannelException {
         String clusterName = System.getProperty(CLUSTER_NAME, DEFAULT_CLUSTER);
         
         _registry = registry; 
@@ -72,7 +73,7 @@ public class Proxy extends ReceiverAdapter {
     
     public void send(DistributedEndpoint endpoint, Exchange exchange) {
 	Address target = endpoint.getAddress();
-	ExchangeWrapper ew = new ExchangeWrapper(exchange);
+	SerializableExchangeWrapper ew = new SerializableExchangeWrapper(exchange);
 	Message message = new Message(target, _channel.getAddress(),
 		ew);
 	try {
@@ -84,7 +85,7 @@ public class Proxy extends ReceiverAdapter {
         }
     }	
         
-    public void processExchange(ExchangeWrapper wrapper) {
+    public void processExchange(SerializableExchangeWrapper wrapper) {
 	ServiceDomain domain = ServiceDomains.getDomain();
 	Exchange exchange = domain.createExchange(wrapper.getServiceName(), 
 		wrapper.getExchangePattern());
@@ -93,8 +94,8 @@ public class Proxy extends ReceiverAdapter {
     
     public void receive(Message message) {
 	Object object = message.getObject();
-	if (object instanceof ExchangeWrapper) {
-	    ExchangeWrapper wrapper = (ExchangeWrapper) object;
+	if (object instanceof SerializableExchangeWrapper) {
+	    SerializableExchangeWrapper wrapper = (SerializableExchangeWrapper) object;
 	    processExchange(wrapper);
 	    return;
 	}

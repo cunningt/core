@@ -32,9 +32,9 @@ import org.switchyard.spi.Endpoint;
 public class DistributedEndpoint implements Endpoint {
     private HandlerChain _handlerChain;
     private Address _address;
-    private Proxy _proxy;
+    private RegistryProxy _proxy;
 	   
-    DistributedEndpoint(Proxy proxy, Address address) {
+    DistributedEndpoint(RegistryProxy proxy, Address address) {
 	_proxy = proxy;
 	_address = address;
     }
@@ -53,7 +53,6 @@ public class DistributedEndpoint implements Endpoint {
 	    _proxy.send(this, exchange);
 	} else if (_handlerChain != null) {
 	    _handlerChain.handle(exchange);
-	} else {
-	}
+	} 
     }
 }

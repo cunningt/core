@@ -38,7 +38,7 @@ public class ServiceRegistration implements Service {
     private QName _serviceName;
     private HandlerChain _handlers;
     
-    ServiceRegistration(QName serviceName, 
+    public ServiceRegistration(QName serviceName, 
             Endpoint endpoint, 
             HandlerChain handlers, 
             ServiceRegistry registry, 

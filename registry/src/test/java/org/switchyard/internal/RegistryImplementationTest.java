@@ -28,7 +28,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.switchyard.MockHandler;
-import org.switchyard.internal.MockEndpoint;
+import org.switchyard.test.mock.MockEndpoint;
 import org.switchyard.ServiceDomain;
 
 /**
@@ -36,8 +36,8 @@ import org.switchyard.ServiceDomain;
  */
 public class RegistryImplementationTest {
     
-    private static final String MOCK_REGISTRY = "org.switchyard.internal.MockServiceRegistry";
-    private static final String MOCK_ENDPOINT_PROVIDER = "org.switchyard.internal.MockEndpointProvider";
+    private static final String MOCK_REGISTRY = "org.switchyard.test.mock.MockServiceRegistry";
+    private static final String MOCK_ENDPOINT_PROVIDER = "org.switchyard.test.mock.MockEndpointProvider";
 
     @Before
     public void setUp() throws Exception {

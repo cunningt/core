@@ -19,7 +19,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.switchyard.internal;
+package org.switchyard.wrapper;
 
 import java.io.Serializable;
 
@@ -34,21 +34,21 @@ import org.switchyard.ServiceDomain;
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class ExchangeWrapper implements Serializable {
+public class SerializableExchangeWrapper implements Serializable {
     public static final String EXCHANGE_ID = "org.switchyard.exchange.id";
     private static final long serialVersionUID = -8671429058316279085L;
 
     private ExchangePattern _exchangePattern;
     private QName _serviceName;
-    private DefaultMessageWrapper _messageWrapper;
+    private SerializableMessageWrapper _messageWrapper;
     private SerializableContextWrapper _context;
  
-    public ExchangeWrapper(Exchange exchange) {
+    public SerializableExchangeWrapper(Exchange exchange) {
 	_context = new SerializableContextWrapper(exchange.getContext());
 	_context.setProperty(EXCHANGE_ID, exchange.getId());
         _exchangePattern = exchange.getPattern();       
 	_serviceName = exchange.getService();
-	_messageWrapper = new DefaultMessageWrapper(exchange.getMessage());
+	_messageWrapper = new SerializableMessageWrapper(exchange.getMessage());
     }
  
     public SerializableContextWrapper getContext() {
@@ -88,6 +88,6 @@ public class ExchangeWrapper implements Serializable {
     }
     
     public void setMessage(Message message) {
-        _messageWrapper = new DefaultMessageWrapper(message);
+        _messageWrapper = new SerializableMessageWrapper(message);
     }
 }
