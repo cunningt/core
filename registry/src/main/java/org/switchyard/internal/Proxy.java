@@ -1,10 +1,13 @@
 package org.switchyard.internal;
 
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.xml.namespace.QName;
 
+import org.jgroups.Address;
+import org.jgroups.Channel;
 import org.jgroups.ChannelClosedException;
 import org.jgroups.ChannelException;
 import org.jgroups.ChannelNotConnectedException;
@@ -38,21 +41,41 @@ public class Proxy extends ReceiverAdapter {
         _channel.connect(clusterName);  
     }
     
-    public void send(Exchange exchange) {
-	
+    public void send(DistributedEndpoint endpoint, Exchange exchange) {
+	Address target = endpoint.getAddress();
+	ExchangeWrapper ew = new ExchangeWrapper(exchange);
+	Message message = new Message(target, _channel.getAddress(),
+		ew);
+    }	
+        
+    public void processExchange(ExchangeWrapper wrapper) {
+	ServiceDomain domain = ServiceDomains.getDomain();
+	Exchange exchange = domain.createExchange(wrapper.getServiceName(), 
+		wrapper.getExchangePattern());
+	exchange.send(wrapper.getMessage());
     }
     
     public void receive(Message message) {
+	Object object = message.getObject();
+	if (object instanceof ExchangeWrapper) {
+	    ExchangeWrapper wrapper = (ExchangeWrapper) object;
+	    processExchange(wrapper);
+	    return;
+	}
+	
         RegistrationMessage msg = (RegistrationMessage) message.getObject();
         QName serviceName = msg.getName();
-
-        System.out.println();
-        System.out.println("RECEIVE");
         
         if (msg.getAction().equals(RegistrationAction.REGISTER)) {            
             DistributedEndpoint de = new DistributedEndpoint(this, message.getSrc());
             ServiceDomain domain = ServiceDomains.getDomain(msg.getDomainName());
-            _registry.registerService(serviceName, de, null, domain);
+            
+            // If we are receiving this registration message from ourselves, ignore it
+            if (_channel.getAddress().compareTo(de.getAddress()) == 0) {
+        	return;
+            } else {
+        	_registry.registerService(serviceName, de, null, domain);
+            }
         } else if (msg.getAction().equals(RegistrationAction.UNREGISTER)) {
             List<Service> serviceList = _registry.getServices(serviceName);
             for (Service service : serviceList) {
@@ -82,10 +105,9 @@ public class Proxy extends ReceiverAdapter {
      * @throws ChannelNotConnectedException 
      */
     public void sendRegisterNotification(QName serviceName, String domainName) throws ChannelNotConnectedException, ChannelClosedException {
-	System.out.println("registerNotification");
 	RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
         regMsg.setDomainName(domainName);
-        Message msg=new Message(null, null, regMsg);
+        Message msg=new Message(null, _channel.getAddress(), regMsg);
         
         _channel.send(msg);
     }
@@ -96,10 +118,9 @@ public class Proxy extends ReceiverAdapter {
      * @throws ChannelNotConnectedException 
      */
     public void sendDeleteNotification(QName serviceName) throws ChannelNotConnectedException, ChannelClosedException {
-	System.out.println("deleteNotification");
 	RegistrationMessage regMsg = new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
-        Message msg=new Message(null, null, regMsg);
+        Message msg=new Message(null, _channel.getAddress(), regMsg);
         
         _channel.send(msg);        
-    }
+    }	
 }

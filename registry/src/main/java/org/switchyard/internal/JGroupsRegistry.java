@@ -52,6 +52,7 @@ public class JGroupsRegistry implements ServiceRegistry {
         new HashMap<QName, List<ServiceRegistration>>();
     
     private Proxy _proxy;
+    private Thread _proxyThread;
     
     /**
      * Constructor
@@ -60,6 +61,10 @@ public class JGroupsRegistry implements ServiceRegistry {
         super();
         
         _proxy = new Proxy(this);
+        //_proxyThread = new Thread(_proxy);
+        //_proxyThread.setName("RegistryProxy");
+        //_proxyThread.setDaemon(true);
+        //_proxyThread.start();
     }
         
     @Override
