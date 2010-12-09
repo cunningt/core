@@ -24,51 +24,55 @@ package org.switchyard.internal;
 import javax.xml.namespace.QName;
 
 import junit.framework.Assert;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.switchyard.MockHandler;
-import org.switchyard.test.mock.MockEndpoint;
+import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
+import org.switchyard.test.mock.MockEndpoint;
+import org.switchyard.test.mock.MockService;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
 public class RegistryImplementationTest {
-    
+
     private static final String MOCK_REGISTRY = "org.switchyard.test.mock.MockServiceRegistry";
     private static final String MOCK_ENDPOINT_PROVIDER = "org.switchyard.test.mock.MockEndpointProvider";
 
     @Before
     public void setUp() throws Exception {
-        System.setProperty(ServiceDomains.REGISTRY_CLASS_NAME, 
+        System.setProperty(ServiceDomains.REGISTRY_CLASS_NAME,
             MOCK_REGISTRY);
-        System.setProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME, 
-            MOCK_ENDPOINT_PROVIDER); 
+        System.setProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME,
+            MOCK_ENDPOINT_PROVIDER);
     }
-    
+
     @After
     public void tearDown() throws Exception {
         System.clearProperty(ServiceDomains.REGISTRY_CLASS_NAME);
         System.clearProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME);
     }
-    
+
     @Test
     public void testSystemPropertiesSet() throws Exception  {
         final String DOMAIN1 = "properties";
-    
+
         Assert.assertEquals(System.getProperty(ServiceDomains.REGISTRY_CLASS_NAME), MOCK_REGISTRY);
-        Assert.assertEquals(System.getProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME), MOCK_ENDPOINT_PROVIDER);               
-        
+        Assert.assertEquals(System.getProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME), MOCK_ENDPOINT_PROVIDER);
+
         ServiceDomain domain = ServiceDomains.createDomain(DOMAIN1);
         final QName serviceName = new QName("inOutFault");
         // Provide the service
         MockHandler provider = new MockHandler().forwardInToFault();
-        ServiceRegistration sr = (ServiceRegistration) domain.registerService(serviceName, provider);
-        Assert.assertEquals(sr.getName().toString(), "mockServiceName");        
-    
-        if (!(sr.getEndpoint() instanceof MockEndpoint)) {
+        Service sr = domain.registerService(serviceName, provider);
+        Assert.assertEquals(sr.getName().toString(), "mockServiceName");
+
+        MockService mockService = (MockService) sr;
+        if (!(mockService.getEndpoint() instanceof MockEndpoint)) {
             Assert.fail("Endpoint for " + sr.getName() + " was not a MockEndpoint");
-        }        
+        }
     }
 }

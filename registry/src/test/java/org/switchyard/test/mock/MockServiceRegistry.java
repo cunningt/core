@@ -1,4 +1,5 @@
 /*
+
  * JBoss, Home of Professional Open Source.
  * Copyright 2010, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
@@ -29,26 +30,25 @@ import javax.xml.namespace.QName;
 import org.switchyard.HandlerChain;
 import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
-import org.switchyard.internal.ServiceRegistration;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class MockServiceRegistry implements ServiceRegistry {        
+public class MockServiceRegistry implements ServiceRegistry {
     public MockServiceRegistry() {
     }
-    
+
     @Override
     public Service registerService(QName serviceName, Endpoint endpoint,
             HandlerChain handlers, ServiceDomain domain) {
         QName mockName = new QName("mockServiceName");
-        return new ServiceRegistration(mockName, endpoint, handlers, this, domain);
+        return new MockService(mockName, endpoint, handlers, this, domain);
     }
 
     @Override
-    public void unregisterService(Service service) { 
+    public void unregisterService(Service service) {
     }
 
     @Override
