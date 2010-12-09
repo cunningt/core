@@ -43,7 +43,7 @@ import org.switchyard.ServiceDomain;
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class JGroupsStandingRegistry {
+public class JGroupsRegistryDemo {
     ServiceDomain domain = null;
     HashMap<QName, List<ServiceRegistration>> registrations = new HashMap<QName, List<ServiceRegistration>>();
         
@@ -64,7 +64,7 @@ public class JGroupsStandingRegistry {
     
     @Test
     public void testLoop() {
-        domain = ServiceDomains.createDomain(JGroupsStandingRegistry.class.getName());
+        domain = ServiceDomains.createDomain(JGroupsRegistryDemo.class.getName());
         loop();    
     }
     
@@ -140,7 +140,7 @@ public class JGroupsStandingRegistry {
     }    
     
     public static void main (String args[]) {
-        JGroupsStandingRegistry jgsrt = new JGroupsStandingRegistry();
+        JGroupsRegistryDemo jgsrt = new JGroupsRegistryDemo();
         try {
             jgsrt.setUp();
             jgsrt.loop();
