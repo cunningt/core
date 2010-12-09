@@ -21,7 +21,6 @@
  */
 package org.switchyard.internal;
 
-import org.switchyard.Exchange;
 import org.switchyard.HandlerChain;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.EndpointProvider;
@@ -31,7 +30,7 @@ import org.switchyard.spi.EndpointProvider;
  */
 public class DistributedEndpointProvider implements EndpointProvider {
     @Override
-    public Endpoint createEndpoint(HandlerChain handlerChain) {
+    public Endpoint createEndpoint(final HandlerChain handlerChain) {
         return new DistributedEndpoint(handlerChain);
     }
 }

@@ -25,11 +25,9 @@ import java.io.Serializable;
 
 import javax.xml.namespace.QName;
 
-import org.switchyard.Context;
 import org.switchyard.Exchange;
 import org.switchyard.ExchangePattern;
 import org.switchyard.Message;
-import org.switchyard.ServiceDomain;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
@@ -42,51 +40,95 @@ public class SerializableExchangeWrapper implements Serializable {
     private QName _serviceName;
     private SerializableMessageWrapper _messageWrapper;
     private SerializableContextWrapper _context;
- 
+
+    /**
+     * Wrapper constructor.
+     * @param exchange exchange
+     */
     public SerializableExchangeWrapper(Exchange exchange) {
-	_context = new SerializableContextWrapper(exchange.getContext());
-	_context.setProperty(EXCHANGE_ID, exchange.getId());
-        _exchangePattern = exchange.getPattern();       
-	_serviceName = exchange.getService();
-	_messageWrapper = new SerializableMessageWrapper(exchange.getMessage());
+        _context = new SerializableContextWrapper(exchange.getContext());
+        _context.setProperty(EXCHANGE_ID, exchange.getId());
+        _exchangePattern = exchange.getPattern();
+        _serviceName = exchange.getService();
+        _messageWrapper = new SerializableMessageWrapper(exchange.getMessage());
     }
- 
+
+    /**
+     * Context getter.
+     * @return context
+     */
     public SerializableContextWrapper getContext() {
         return _context;
     }
-    
+
+    /**
+     * Context setter.
+     * @param context context
+     */
     public void setContext(SerializableContextWrapper context) {
         _context = context;
     }
-    
+
+    /**
+     * Exchange ID getter.
+     * @return id
+     */
     public String getId() {
         return (String) _context.getProperty(EXCHANGE_ID);
     }
-    
+
+    /**
+     * Exchange ID setter.
+     * @param id id
+     */
     public void setId(String id) {
         _context.setProperty(EXCHANGE_ID, id);
     }
-    
+
+    /**
+     * Exchange pattern getter.
+     * @return exchange pattern
+     */
     public ExchangePattern getExchangePattern() {
         return _exchangePattern;
     }
-    
+
+    /**
+     * Exchange pattern setter.
+     * @param exchangePattern exchange pattern
+     */
     public void setExchangePattern(ExchangePattern exchangePattern) {
         _exchangePattern = exchangePattern;
     }
-    
+
+    /**
+     * Service name getter.
+     * @return service name
+     */
     public QName getServiceName() {
         return _serviceName;
     }
-    
+
+    /**
+     * Service name setter.
+     * @param serviceName service name
+     */
     public void setServiceName(QName serviceName) {
         _serviceName = serviceName;
     }
-    
+
+    /**
+     * Message getter.
+     * @return message
+     */
     public Message getMessage() {
         return _messageWrapper.getMessage();
     }
-    
+
+    /**
+     * Message setter.
+     * @param message message
+     */
     public void setMessage(Message message) {
         _messageWrapper = new SerializableMessageWrapper(message);
     }
