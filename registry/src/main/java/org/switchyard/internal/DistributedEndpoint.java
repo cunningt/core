@@ -33,26 +33,30 @@ public class DistributedEndpoint implements Endpoint {
     private HandlerChain _handlerChain;
     private Address _address;
     private RegistryProxy _proxy;
-	   
+
     DistributedEndpoint(RegistryProxy proxy, Address address) {
-	_proxy = proxy;
-	_address = address;
+        _proxy = proxy;
+        _address = address;
     }
-	   
+   
     DistributedEndpoint(HandlerChain handlerChain) {
-	_handlerChain = handlerChain;
+        _handlerChain = handlerChain;
     }
 
+    /**
+     * Address getter.
+     * @return address
+     */
     public Address getAddress() {
 	return _address;
     }
-    
+
     @Override
     public void send(Exchange exchange) {
-	if ( _address != null) {
+        if ( _address != null) {
 	    _proxy.send(this, exchange);
 	} else if (_handlerChain != null) {
 	    _handlerChain.handle(exchange);
-	} 
+	}
     }
 }

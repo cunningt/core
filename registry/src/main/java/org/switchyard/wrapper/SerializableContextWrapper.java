@@ -19,7 +19,6 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
 package org.switchyard.wrapper;
 
 import java.io.Serializable;
@@ -32,27 +31,27 @@ import org.switchyard.Context;
 /**
  * A serializable version of Context wherein all the values stored
  * are themselves serializable.
- * 
+ *
  * @author tcunning
  */
 public class SerializableContextWrapper implements Context, Serializable {
-    
-    private ConcurrentHashMap<String, Serializable> _properties = 
+
+    private ConcurrentHashMap<String, Serializable> _properties =
         new ConcurrentHashMap<String, Serializable>();
 
-    public SerializableContextWrapper(Context context) {
+    public SerializableContextWrapper(final Context context) {
         Map<String, Object> properties = context.getProperties();
         for (String key : properties.keySet()) {
             Object obj = properties.get(key);
-            
+
             if (obj instanceof Serializable) {
                 _properties.put(key, (Serializable) obj);
             }
         }
     }
-    
+
     @Override
-    public Object getProperty(String name) {
+    public Object getProperty(final String name) {
         return _properties.get(name);
     }
 
@@ -64,20 +63,20 @@ public class SerializableContextWrapper implements Context, Serializable {
     }
 
     @Override
-    public boolean hasProperty(String name) {
+    public boolean hasProperty(final String name) {
         return _properties.containsKey(name);
     }
 
     @Override
-    public Object removeProperty(String name) {
+    public Object removeProperty(final String name) {
         return _properties.remove(name);
     }
 
     @Override
-    public void setProperty(String name, Object val) {
+    public void setProperty(final String name, final Object val) {
         if (val instanceof Serializable) {
             Serializable serializableVal = (Serializable) val;
-            _properties.put(name, serializableVal);            
+            _properties.put(name, serializableVal);
         } else {
             throw new RuntimeException("The value for the key "
                     + name + " is not serializable and not "
