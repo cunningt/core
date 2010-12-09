@@ -40,39 +40,39 @@ import org.switchyard.spi.ServiceRegistry;
 /**
  * A distributed Registry that broadcasts register and unregister messages
  * to track remote services within a cluster.
- * 
+ *
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
-public class JGroupsRegistry implements ServiceRegistry {    
-    
-    private Map<QName, List<ServiceRegistration>> _localServices = 
+public class JGroupsRegistry implements ServiceRegistry {
+
+    private final Map<QName, List<ServiceRegistration>> _localServices =
         new HashMap<QName, List<ServiceRegistration>>();
-    
-    private Map<QName, List<ServiceRegistration>> _remoteServices =
+
+    private final Map<QName, List<ServiceRegistration>> _remoteServices =
         new HashMap<QName, List<ServiceRegistration>>();
-    
-    private RegistryProxy _proxy;
-    
+
+    private final RegistryProxy _proxy;
+
     /**
      * Constructor
      */
     public JGroupsRegistry() throws Exception {
-        super();       
+        super();
         _proxy = new RegistryProxy(this);
     }
-        
+
     @Override
     public Service registerService(QName serviceName, Endpoint endpoint,
             HandlerChain handlers, ServiceDomain domain) {
         ServiceRegistration sr = new ServiceRegistration(
                 serviceName, endpoint, handlers, this, domain);
         boolean remoteFlag = false;
-        
+
         if (endpoint instanceof DistributedEndpoint) {
             DistributedEndpoint de = (DistributedEndpoint) endpoint;
             remoteFlag = de.getAddress() != null;
         }
-        
+
         if (remoteFlag) {
             List<ServiceRegistration> remoteList = _remoteServices.get(serviceName);
             if (remoteList == null) {
@@ -93,10 +93,10 @@ public class JGroupsRegistry implements ServiceRegistry {
             } catch (ChannelClosedException e) {
                 throw new RuntimeException(e);
             }
-            
+
             serviceList.add(sr);
         }
-        
+
         printRegistry();
         return sr;
     }
@@ -110,7 +110,7 @@ public class JGroupsRegistry implements ServiceRegistry {
 	    printRegistry();
 	    return;
 	}
-	
+
 	// Not a remote service - remove the local service
 	List<ServiceRegistration> serviceList = _localServices.get(service.getName());
         if (serviceList != null) {
@@ -122,7 +122,7 @@ public class JGroupsRegistry implements ServiceRegistry {
             } catch (ChannelClosedException e) {
                 throw new RuntimeException(e);
             }
-            printRegistry();            
+            printRegistry();
         }
     }
 
@@ -135,21 +135,24 @@ public class JGroupsRegistry implements ServiceRegistry {
         for (List<ServiceRegistration> services : _remoteServices.values()) {
             serviceList.addAll(services);
         }
-        
+
         return serviceList;
     }
 
     @Override
     public List<Service> getServices(QName serviceName) {
         LinkedList<Service> serviceList = new LinkedList<Service>();
-        for (List<ServiceRegistration> services : _localServices.values()) {
-            serviceList.addAll(services);
+
+        List<ServiceRegistration> locals = _localServices.get(serviceName);
+        if (locals != null) {
+            serviceList.addAll(locals);
         }
-        
-        for (List<ServiceRegistration> services : _remoteServices.values()) {
-            serviceList.addAll(services);
+
+        List<ServiceRegistration> remotes = _remoteServices.get(serviceName);
+        if (remotes != null) {
+            serviceList.addAll(remotes);
         }
-        
+
         return serviceList;
     }
 
@@ -163,10 +166,10 @@ public class JGroupsRegistry implements ServiceRegistry {
             if (!sr.getDomain().getName().equals(domainName)) {
                 i.remove();
             }
-        }                
+        }
         return domainServices;
     }
-    
+
     public void printRegistry() {
         System.out.println();
         System.out.println("====================================");
@@ -178,7 +181,7 @@ public class JGroupsRegistry implements ServiceRegistry {
                         + "Service [" + sr.getName().toString() + "]");
             }
         }
-        
+
         System.out.println("====================================");
         System.out.println("Remote Services");
         System.out.println("====================================");
@@ -187,7 +190,7 @@ public class JGroupsRegistry implements ServiceRegistry {
                 System.out.println("Domain [" + sr.getDomain() + "] "
                         + "Service [" + sr.getName().toString() + "]");
             }
-        }        
+        }
         System.out.println("====================================");
         System.out.println();
     }
