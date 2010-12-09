@@ -76,8 +76,8 @@ public class JGroupsRegistry implements ServiceRegistry {
         if (remoteFlag) {
             List<ServiceRegistration> remoteList = _remoteServices.get(serviceName);
             if (remoteList == null) {
-        	remoteList = new LinkedList<ServiceRegistration>();
-        	_remoteServices.put(serviceName, remoteList);
+                remoteList = new LinkedList<ServiceRegistration>();
+                _remoteServices.put(serviceName, remoteList);
             }
             remoteList.add(sr);
         } else {
@@ -103,16 +103,16 @@ public class JGroupsRegistry implements ServiceRegistry {
 
     @Override
     public void unregisterService(Service service) {
-	// Check whether this is a remote service
-	List<ServiceRegistration> remoteList = _remoteServices.get(service.getName());
-	if ((remoteList != null) && (remoteList.contains(service))) {
-	    remoteList.remove(service);
-	    printRegistry();
-	    return;
-	}
+        // Check whether this is a remote service
+        List<ServiceRegistration> remoteList = _remoteServices.get(service.getName());
+        if ((remoteList != null) && (remoteList.contains(service))) {
+            remoteList.remove(service);
+            printRegistry();
+            return;
+        }
 
-	// Not a remote service - remove the local service
-	List<ServiceRegistration> serviceList = _localServices.get(service.getName());
+        // Not a remote service - remove the local service
+        List<ServiceRegistration> serviceList = _localServices.get(service.getName());
         if (serviceList != null) {
             serviceList.remove(service);
             try {

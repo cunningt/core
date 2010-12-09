@@ -1,5 +1,4 @@
 /*
-
  * JBoss, Home of Professional Open Source.
  * Copyright 2010, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
@@ -30,6 +29,7 @@ import javax.xml.namespace.QName;
 import org.switchyard.HandlerChain;
 import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
+import org.switchyard.internal.ServiceRegistration;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 
