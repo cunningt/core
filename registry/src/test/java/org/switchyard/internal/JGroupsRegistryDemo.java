@@ -46,54 +46,55 @@ import org.switchyard.ServiceDomain;
 public class JGroupsRegistryDemo {
     ServiceDomain domain = null;
     HashMap<QName, List<ServiceRegistration>> registrations = new HashMap<QName, List<ServiceRegistration>>();
-        
+
     @Before
     public void setUp() throws Exception {
-        System.setProperty(ServiceDomains.REGISTRY_CLASS_NAME, 
+        System.setProperty(ServiceDomains.REGISTRY_CLASS_NAME,
             JGroupsRegistry.class.getName());
-        System.setProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME, 
-            DistributedEndpointProvider.class.getName()); 
+        System.setProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME,
+            DistributedEndpointProvider.class.getName());
         domain = ServiceDomains.getDomain();
     }
-    
+
     @After
     public void tearDown() throws Exception {
         System.clearProperty(ServiceDomains.REGISTRY_CLASS_NAME);
         System.clearProperty(ServiceDomains.ENDPOINT_PROVIDER_CLASS_NAME);
     }
-    
+
     @Test
     public void testLoop() {
         domain = ServiceDomains.createDomain(JGroupsRegistryDemo.class.getName());
-        loop();    
+        loop();
     }
-    
+
     private void prompt() {
         System.out.println();
-        System.out.print("[(r)egister/(u)nregister/(e)xchange <service>- "); 
+        System.out.print("[(r)egister/(u)nregister/(e)xchange <service>- ");
         System.out.flush();
     }
-    
+
     private void loop() {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         while(true) {
             try {
                 prompt();
-                
+
                 String line = in.readLine();
-                if (!line.isEmpty()) {    
+                if (!line.isEmpty()) {
                     if ((line.startsWith("r"))) {
                         String[] array = line.split(" ");
 
                         final QName serviceName = new QName(array[1]);
                         // Provide the service
                         ExchangeHandler provider = new BaseHandler() {
+                            @Override
                             public void handleMessage(Exchange event) {
                                 System.out.println("MESSAGE: "
-                                        + event.getMessage().getContent().toString()); 
+                                        + event.getMessage().getContent().toString());
                             }
-                        };      
-                        ServiceRegistration sr = 
+                        };
+                        ServiceRegistration sr =
                             (ServiceRegistration) domain.registerService(serviceName, provider);
 
                         List<ServiceRegistration> services = null;
@@ -103,10 +104,10 @@ public class JGroupsRegistryDemo {
                             services = new ArrayList<ServiceRegistration>();
                             services.add(sr);
                             registrations.put(serviceName, services);
-                        }                        
+                        }
                     } else if (line.startsWith("u")) {
                         String[] array = line.split(" ");
-                        
+
                         final QName serviceName = new QName(array[1]);
                         List<ServiceRegistration> services = null;
                         if (registrations.containsKey(serviceName)) {
@@ -122,23 +123,23 @@ public class JGroupsRegistryDemo {
                         }
                     } else if (line.startsWith("e")) {
                         String[] array = line.split(" ");
-                        
-                        final QName serviceName = new QName(array[1]);                        
-   
+
+                        final QName serviceName = new QName(array[1]);
+
                         Exchange exchange = domain.createExchange(serviceName, ExchangePattern.IN_OUT);
                 	Message message = MessageBuilder.newInstance().buildMessage();
                 	message.setContent("foo");
                 	exchange.send(message);
                     } else if (("quit".equalsIgnoreCase(line))) {
                         break;
-                    } 
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-    }    
-    
+    }
+
     public static void main (String args[]) {
         JGroupsRegistryDemo jgsrt = new JGroupsRegistryDemo();
         try {
@@ -148,6 +149,6 @@ public class JGroupsRegistryDemo {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        
+
     }
 }
