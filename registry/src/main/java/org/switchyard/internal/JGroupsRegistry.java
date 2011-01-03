@@ -21,6 +21,8 @@
  */
 package org.switchyard.internal;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -59,6 +61,7 @@ public class JGroupsRegistry implements ServiceRegistry {
     public JGroupsRegistry() throws Exception {
         super();
         _proxy = new RegistryProxy(this);
+        _proxy.sendPopulateNotification();
     }
 
     @Override
@@ -168,6 +171,18 @@ public class JGroupsRegistry implements ServiceRegistry {
             }
         }
         return domainServices;
+    }
+
+    protected List<Service> getLocalServices() {
+        List<Service> localServices = new ArrayList<Service>();
+        // Using an explicit iterator because we are removing elements
+        Collection<List<ServiceRegistration>> services = _localServices.values();
+        for (Iterator i = services.iterator(); i.hasNext(); ) {
+            List<ServiceRegistration> sr = (List<ServiceRegistration>) i.next();
+            localServices.addAll(sr);
+        }
+
+        return localServices;
     }
 
     public void printRegistry() {

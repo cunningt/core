@@ -22,6 +22,7 @@
 package org.switchyard.internal;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -47,8 +48,8 @@ import org.switchyard.wrapper.SerializableExchangeWrapper;
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
  */
 public class RegistryProxy extends ReceiverAdapter {
-    private ServiceRegistry _registry;
-    private JChannel _channel;
+    private final ServiceRegistry _registry;
+    private final JChannel _channel;
 
     public static final String CLUSTER_NAME = "org.switchyard.registry.cluster";
     public static final String DEFAULT_CLUSTER = "SwitchyardCluster";
@@ -56,7 +57,7 @@ public class RegistryProxy extends ReceiverAdapter {
     public static final String REGISTER_MESSAGE = "register";
     public static final String UNREGISTER_MESSAGE = "unregister";
 
-    private Map<Address, List<ServiceRegistration>> _remoteServices =
+    private final Map<Address, List<ServiceRegistration>> _remoteServices =
         new HashMap<Address, List<ServiceRegistration>>();
 
     /**
@@ -108,6 +109,7 @@ public class RegistryProxy extends ReceiverAdapter {
     /* (non-Javadoc)
      * @see org.jgroups.ReceiverAdapter#receive(org.jgroups.Message)
      */
+    @Override
     public void receive(Message message) {
         Object object = message.getObject();
         if (object instanceof SerializableExchangeWrapper) {
@@ -127,7 +129,7 @@ public class RegistryProxy extends ReceiverAdapter {
                 ServiceDomains.getDomain(msg.getDomainName());
 
             if (_channel.getAddress().compareTo(de.getAddress()) == 0) {
-                // If we are receiving this registration 
+                // If we are receiving this registration
                 // message from ourselves, ignore it
                 return;
             } else {
@@ -167,7 +169,23 @@ public class RegistryProxy extends ReceiverAdapter {
                 }
             }
         } else if (msg.getAction().equals(RegistrationAction.POPULATE)) {
-            // Need to implement
+            if (_channel.getAddress().compareTo(message.getSrc()) == 0) {
+                // If we are receiving this registration
+                // message from ourselves, ignore it
+                return;
+            } else {
+                JGroupsRegistry jgr = (JGroupsRegistry) _registry;
+                List<Service> services = jgr.getLocalServices();
+                for (Iterator i = services.iterator(); i.hasNext();) {
+                    ServiceRegistration service = (ServiceRegistration) i.next();
+                    try {
+                        sendPopulationRegistration(message.getSrc(), service.getName(),
+                            service.getDomain().getName());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
         } else {
             throw new RuntimeException("Received invalid registration message");
         }
@@ -177,6 +195,7 @@ public class RegistryProxy extends ReceiverAdapter {
     /* (non-Javadoc)
      * @see org.jgroups.ReceiverAdapter#suspect(org.jgroups.Address)
      */
+    @Override
     public void suspect(Address mbr) {
         // Remove it from our remoteServices list
         List<ServiceRegistration> remoteList = _remoteServices.get(mbr);
@@ -198,6 +217,7 @@ public class RegistryProxy extends ReceiverAdapter {
     /* (non-Javadoc)
      * @see org.jgroups.ReceiverAdapter#viewAccepted(org.jgroups.View)
      */
+    @Override
     public void viewAccepted(View new_view) {
         System.out.println();
         System.out.println("** view: " + new_view);
@@ -230,6 +250,36 @@ public class RegistryProxy extends ReceiverAdapter {
         RegistrationMessage regMsg =
             new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
         Message msg = new Message(null, _channel.getAddress(), regMsg);
+        _channel.send(msg);
+    }
+
+    /**
+     * Sends an populate notification for other nodes to send all
+     * their registered services.
+     * @throws ChannelClosedException ChannelClosedException
+     * @throws ChannelNotConnectedException ChannelNotConnectedException
+     */
+    public void sendPopulateNotification()
+        throws ChannelNotConnectedException, ChannelClosedException {
+        RegistrationMessage regMsg =
+            new RegistrationMessage(null, RegistrationAction.POPULATE);
+        Message msg = new Message(null, _channel.getAddress(), regMsg);
+        _channel.send(msg);
+    }
+
+    /**
+     * Sends a registration notification.
+     * @param serviceName service name
+     * @param domainName domain name
+     * @throws ChannelClosedException ChannelClosedException
+     * @throws ChannelNotConnectedException ChannelNotConnectedException
+     */
+    public void sendPopulationRegistration(Address address, QName serviceName, String domainName)
+        throws ChannelNotConnectedException, ChannelClosedException {
+        RegistrationMessage regMsg =
+            new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
+        regMsg.setDomainName(domainName);
+        Message msg = new Message(address, _channel.getAddress(), regMsg);
         _channel.send(msg);
     }
 }
