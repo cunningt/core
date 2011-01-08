@@ -21,6 +21,9 @@
  */
 package org.switchyard.internal;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -29,6 +32,13 @@ import java.util.Map;
 
 import javax.xml.namespace.QName;
 
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
 import org.jgroups.Address;
 import org.jgroups.ChannelClosedException;
 import org.jgroups.ChannelException;
@@ -40,9 +50,12 @@ import org.jgroups.View;
 import org.switchyard.Exchange;
 import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
+import org.switchyard.marshalling.SerializableClass;
+import org.switchyard.marshalling.SwitchyardStreamHeader;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 import org.switchyard.wrapper.SerializableExchangeWrapper;
+import org.switchyard.wrapper.SerializableMessageWrapper;
 
 /**
  * @author <a href="mailto:tcunning@redhat.com">Tom Cunningham</a>
@@ -57,6 +70,11 @@ public class RegistryProxy extends ReceiverAdapter {
     public static final String REGISTER_MESSAGE = "register";
     public static final String UNREGISTER_MESSAGE = "unregister";
 
+    private final MarshallingConfiguration configuration;
+    private final MarshallerFactory marshallerFactory;
+    private final MarshallerFactory unmarshallerFactory;
+
+
     private final Map<Address, List<ServiceRegistration>> _remoteServices =
         new HashMap<Address, List<ServiceRegistration>>();
 
@@ -68,6 +86,10 @@ public class RegistryProxy extends ReceiverAdapter {
     public RegistryProxy(ServiceRegistry registry) throws ChannelException {
         String clusterName = System.getProperty(CLUSTER_NAME, DEFAULT_CLUSTER);
 
+        // Set up marshalling
+        configuration = new MarshallingConfiguration();
+        marshallerFactory = Marshalling.getMarshallerFactory("river");
+        unmarshallerFactory = Marshalling.getMarshallerFactory("river");
         _registry = registry;
 
         _channel = new JChannel();
@@ -84,8 +106,23 @@ public class RegistryProxy extends ReceiverAdapter {
         Address target = endpoint.getAddress();
         SerializableExchangeWrapper ew =
             new SerializableExchangeWrapper(exchange);
+
+        SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.EXCHANGE);
+        configuration.setStreamHeader(streamHeader);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
+            marshaller.start(byteOutput);
+            marshaller.writeObject(ew);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+
+        byte[] bytes = baos.toByteArray();
         Message message = new Message(target, _channel.getAddress(),
-                ew);
+                bytes);
         try {
             _channel.send(message);
         } catch (ChannelNotConnectedException e) {
@@ -106,20 +143,54 @@ public class RegistryProxy extends ReceiverAdapter {
         exchange.send(wrapper.getMessage());
     }
 
+    /**
+     * Process the exchange.
+     * @param wrapper wrapper
+     */
+    public void processMessage(SerializableMessageWrapper wrapper) {
+        //ServiceDomain domain = ServiceDomains.getDomain();
+        //Exchange exchange = domain.createExchange(wrapper.getServiceName(),
+        //        wrapper.getExchangePattern());
+        //exchange.send(wrapper.getMessage());
+    }
+
+
     /* (non-Javadoc)
      * @see org.jgroups.ReceiverAdapter#receive(org.jgroups.Message)
      */
     @Override
     public void receive(Message message) {
-        Object object = message.getObject();
-        if (object instanceof SerializableExchangeWrapper) {
-            SerializableExchangeWrapper wrapper =
-                (SerializableExchangeWrapper) object;
-            processExchange(wrapper);
-            return;
+
+        RegistrationMessage msg = null;
+        byte[] bytes = message.getBuffer();
+        ByteInput byteInput = Marshalling.createByteInput(new ByteArrayInputStream(bytes));
+        SwitchyardStreamHeader header = new SwitchyardStreamHeader();
+        configuration.setStreamHeader(header);
+
+        try {
+            final Unmarshaller unmarshaller = unmarshallerFactory.createUnmarshaller(configuration);
+            unmarshaller.start(byteInput);
+            SerializableClass sclass = header.getSerializableClass();
+            if (sclass.getByte() == SerializableClass.EXCHANGE.getByte()) {
+                SerializableExchangeWrapper wrapper = (SerializableExchangeWrapper) unmarshaller.readObject();
+                unmarshaller.finish();
+                processExchange(wrapper);
+                return;
+            } else if (sclass.getByte() == SerializableClass.MESSAGE.getByte()) {
+                SerializableMessageWrapper wrapper = (SerializableMessageWrapper) unmarshaller.readObject();
+                unmarshaller.finish();
+                processMessage(wrapper);
+                return;
+            } else if (sclass.getByte() == SerializableClass.REGISTRATION_MESSAGE.getByte()) {
+                msg = (RegistrationMessage) unmarshaller.readObject();
+                unmarshaller.finish();
+            }
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        } catch (ClassNotFoundException cnfe) {
+            throw new RuntimeException(cnfe);
         }
 
-        RegistrationMessage msg = (RegistrationMessage) message.getObject();
         QName serviceName = msg.getName();
 
         if (msg.getAction().equals(RegistrationAction.REGISTER)) {
@@ -236,7 +307,26 @@ public class RegistryProxy extends ReceiverAdapter {
         RegistrationMessage regMsg =
             new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
         regMsg.setDomainName(domainName);
-        Message msg = new Message(null, _channel.getAddress(), regMsg);
+
+
+        SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
+        configuration.setStreamHeader(streamHeader);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
+            marshaller.start(byteOutput);
+            System.out.println("Marshaller = " + marshaller + " (version set to " + configuration.getVersion() + ")");
+            marshaller.writeObject(regMsg);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        byte[] bytes = baos.toByteArray();
+
+
+
+        Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
     }
 
@@ -249,7 +339,23 @@ public class RegistryProxy extends ReceiverAdapter {
         throws ChannelNotConnectedException, ChannelClosedException {
         RegistrationMessage regMsg =
             new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
-        Message msg = new Message(null, _channel.getAddress(), regMsg);
+
+        SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
+        configuration.setStreamHeader(streamHeader);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
+            marshaller.start(byteOutput);
+            marshaller.writeObject(regMsg);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        byte[] bytes = baos.toByteArray();
+
+
+        Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
     }
 
@@ -263,7 +369,23 @@ public class RegistryProxy extends ReceiverAdapter {
         throws ChannelNotConnectedException, ChannelClosedException {
         RegistrationMessage regMsg =
             new RegistrationMessage(null, RegistrationAction.POPULATE);
-        Message msg = new Message(null, _channel.getAddress(), regMsg);
+
+        SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
+        configuration.setStreamHeader(streamHeader);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
+            marshaller.start(byteOutput);
+            marshaller.writeObject(regMsg);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+
+        byte[] bytes = baos.toByteArray();
+
+        Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
     }
 
@@ -279,7 +401,22 @@ public class RegistryProxy extends ReceiverAdapter {
         RegistrationMessage regMsg =
             new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
         regMsg.setDomainName(domainName);
-        Message msg = new Message(address, _channel.getAddress(), regMsg);
+
+        SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
+        configuration.setStreamHeader(streamHeader);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
+            marshaller.start(byteOutput);
+            marshaller.writeObject(regMsg);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        byte[] bytes = baos.toByteArray();
+
+        Message msg = new Message(address, _channel.getAddress(), bytes);
         _channel.send(msg);
     }
 }
