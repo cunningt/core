@@ -22,7 +22,6 @@
 package org.switchyard.internal;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -33,11 +32,7 @@ import java.util.Map;
 import javax.xml.namespace.QName;
 
 import org.jboss.marshalling.ByteInput;
-import org.jboss.marshalling.ByteOutput;
-import org.jboss.marshalling.Marshaller;
-import org.jboss.marshalling.MarshallerFactory;
 import org.jboss.marshalling.Marshalling;
-import org.jboss.marshalling.MarshallingConfiguration;
 import org.jboss.marshalling.Unmarshaller;
 import org.jgroups.Address;
 import org.jgroups.ChannelClosedException;
@@ -50,8 +45,10 @@ import org.jgroups.View;
 import org.switchyard.Exchange;
 import org.switchyard.Service;
 import org.switchyard.ServiceDomain;
+import org.switchyard.marshalling.MarshallerProvider;
 import org.switchyard.marshalling.SerializableClass;
 import org.switchyard.marshalling.SwitchyardStreamHeader;
+import org.switchyard.marshalling.UnmarshallerProvider;
 import org.switchyard.spi.Endpoint;
 import org.switchyard.spi.ServiceRegistry;
 import org.switchyard.wrapper.SerializableExchangeWrapper;
@@ -70,10 +67,8 @@ public class RegistryProxy extends ReceiverAdapter {
     public static final String REGISTER_MESSAGE = "register";
     public static final String UNREGISTER_MESSAGE = "unregister";
 
-    private final MarshallingConfiguration configuration;
-    private final MarshallerFactory marshallerFactory;
-    private final MarshallerFactory unmarshallerFactory;
-
+    private final MarshallerProvider _marshallerProvider;
+    private final UnmarshallerProvider _unmarshallerProvider;
 
     private final Map<Address, List<ServiceRegistration>> _remoteServices =
         new HashMap<Address, List<ServiceRegistration>>();
@@ -87,10 +82,9 @@ public class RegistryProxy extends ReceiverAdapter {
         String clusterName = System.getProperty(CLUSTER_NAME, DEFAULT_CLUSTER);
 
         // Set up marshalling
-        configuration = new MarshallingConfiguration();
-        marshallerFactory = Marshalling.getMarshallerFactory("river");
-        unmarshallerFactory = Marshalling.getMarshallerFactory("river");
         _registry = registry;
+        _marshallerProvider = new MarshallerProvider();
+        _unmarshallerProvider = new UnmarshallerProvider();
 
         _channel = new JChannel();
         _channel.setReceiver(this);
@@ -108,19 +102,8 @@ public class RegistryProxy extends ReceiverAdapter {
             new SerializableExchangeWrapper(exchange);
 
         SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.EXCHANGE);
-        configuration.setStreamHeader(streamHeader);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
-        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
-        try {
-            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
-            marshaller.start(byteOutput);
-            marshaller.writeObject(ew);
-            marshaller.finish();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-
-        byte[] bytes = baos.toByteArray();
+        _marshallerProvider.getConfiguration().setStreamHeader(streamHeader);
+        byte[] bytes = _marshallerProvider.marshal(ew);
         Message message = new Message(target, _channel.getAddress(),
                 bytes);
         try {
@@ -165,11 +148,10 @@ public class RegistryProxy extends ReceiverAdapter {
         byte[] bytes = message.getBuffer();
         ByteInput byteInput = Marshalling.createByteInput(new ByteArrayInputStream(bytes));
         SwitchyardStreamHeader header = new SwitchyardStreamHeader();
-        configuration.setStreamHeader(header);
+        _unmarshallerProvider.getConfiguration().setStreamHeader(header);
 
         try {
-            final Unmarshaller unmarshaller = unmarshallerFactory.createUnmarshaller(configuration);
-            unmarshaller.start(byteInput);
+            Unmarshaller unmarshaller = _unmarshallerProvider.getUnmarshaller(byteInput);
             SerializableClass sclass = header.getSerializableClass();
             if (sclass.getByte() == SerializableClass.EXCHANGE.getByte()) {
                 SerializableExchangeWrapper wrapper = (SerializableExchangeWrapper) unmarshaller.readObject();
@@ -308,23 +290,9 @@ public class RegistryProxy extends ReceiverAdapter {
             new RegistrationMessage(serviceName, RegistrationAction.REGISTER);
         regMsg.setDomainName(domainName);
 
-
         SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
-        configuration.setStreamHeader(streamHeader);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
-        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
-        try {
-            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
-            marshaller.start(byteOutput);
-            System.out.println("Marshaller = " + marshaller + " (version set to " + configuration.getVersion() + ")");
-            marshaller.writeObject(regMsg);
-            marshaller.finish();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-        byte[] bytes = baos.toByteArray();
-
-
+        _marshallerProvider.getConfiguration().setStreamHeader(streamHeader);
+        byte[] bytes = _marshallerProvider.marshal(regMsg);
 
         Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
@@ -341,19 +309,8 @@ public class RegistryProxy extends ReceiverAdapter {
             new RegistrationMessage(serviceName, RegistrationAction.UNREGISTER);
 
         SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
-        configuration.setStreamHeader(streamHeader);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
-        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
-        try {
-            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
-            marshaller.start(byteOutput);
-            marshaller.writeObject(regMsg);
-            marshaller.finish();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-        byte[] bytes = baos.toByteArray();
-
+        _marshallerProvider.getConfiguration().setStreamHeader(streamHeader);
+        byte[] bytes = _marshallerProvider.marshal(regMsg);
 
         Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
@@ -371,19 +328,8 @@ public class RegistryProxy extends ReceiverAdapter {
             new RegistrationMessage(null, RegistrationAction.POPULATE);
 
         SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
-        configuration.setStreamHeader(streamHeader);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
-        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
-        try {
-            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
-            marshaller.start(byteOutput);
-            marshaller.writeObject(regMsg);
-            marshaller.finish();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-
-        byte[] bytes = baos.toByteArray();
+        _marshallerProvider.getConfiguration().setStreamHeader(streamHeader);
+        byte[] bytes = _marshallerProvider.marshal(regMsg);
 
         Message msg = new Message(null, _channel.getAddress(), bytes);
         _channel.send(msg);
@@ -403,18 +349,8 @@ public class RegistryProxy extends ReceiverAdapter {
         regMsg.setDomainName(domainName);
 
         SwitchyardStreamHeader streamHeader = new SwitchyardStreamHeader(SerializableClass.REGISTRATION_MESSAGE);
-        configuration.setStreamHeader(streamHeader);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
-        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
-        try {
-            Marshaller marshaller = marshallerFactory.createMarshaller(configuration.clone());
-            marshaller.start(byteOutput);
-            marshaller.writeObject(regMsg);
-            marshaller.finish();
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-        byte[] bytes = baos.toByteArray();
+        _marshallerProvider.getConfiguration().setStreamHeader(streamHeader);
+        byte[] bytes = _marshallerProvider.marshal(regMsg);
 
         Message msg = new Message(address, _channel.getAddress(), bytes);
         _channel.send(msg);

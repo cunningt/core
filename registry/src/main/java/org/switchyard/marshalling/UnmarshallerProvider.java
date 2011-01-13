@@ -21,6 +21,31 @@
  */
 package org.switchyard.marshalling;
 
-public class UnmarshallerProvider {
+import java.io.IOException;
 
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
+
+public class UnmarshallerProvider {
+    private final MarshallingConfiguration _configuration;
+    private final MarshallerFactory _unmarshallerFactory;
+
+
+    public UnmarshallerProvider () {
+        _configuration = new MarshallingConfiguration();
+        _unmarshallerFactory = Marshalling.getMarshallerFactory("river");
+    }
+
+    public MarshallingConfiguration getConfiguration() {
+        return _configuration;
+    }
+
+    public Unmarshaller getUnmarshaller(ByteInput byteInput) throws IOException {
+        Unmarshaller unmarshaller = _unmarshallerFactory.createUnmarshaller(_configuration);
+        unmarshaller.start(byteInput);
+        return unmarshaller;
+    }
 }

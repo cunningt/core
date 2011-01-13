@@ -21,6 +21,43 @@
  */
 package org.switchyard.marshalling;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+
 public class MarshallerProvider {
+
+    private final MarshallingConfiguration _configuration;
+    private final MarshallerFactory _marshallerFactory;
+
+    public MarshallerProvider() {
+        _configuration = new MarshallingConfiguration();
+        _marshallerFactory = Marshalling.getMarshallerFactory("river");
+    }
+
+    public MarshallingConfiguration getConfiguration() {
+        return _configuration;
+    }
+
+    public byte[] marshal(Object object) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(10240);
+        ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+        try {
+            Marshaller marshaller = _marshallerFactory.createMarshaller(_configuration);
+            marshaller.start(byteOutput);
+            marshaller.writeObject(object);
+            marshaller.finish();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        byte[] bytes = baos.toByteArray();
+        return bytes;
+    }
+
 
 }
